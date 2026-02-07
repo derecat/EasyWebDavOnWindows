@@ -26,22 +26,23 @@ jobs:
           pip install wsgidav cheroot
           pip install pyinstaller
 
-      # 关键修改：适配PowerShell的PyInstaller命令写法
       - name: 打包为Windows可执行文件
         run: |
-          # 写法1：将所有参数写在一行（PowerShell兼容）
+          # PowerShell兼容的单行写法
           pyinstaller --onefile --windowed --name "WebDAV管理器" --clean main.py
-          # 如果需要添加额外文件（如README），写法如下：
-          # pyinstaller --onefile --windowed --name "WebDAV管理器" --add-data "README.md;." --clean main.py
 
-      - name: 提取版本信息
+      - name: 提取版本信息（适配PowerShell语法）
         id: get_version
         run: |
-          if ("${{ github.ref_type }}" -eq "tag"); then
-            echo "VERSION=${{ github.ref_name }}" >> $env:GITHUB_ENV
-          else
-            echo "VERSION=dev-${{ github.sha }}" >> $env:GITHUB_ENV
-          fi
+          # PowerShell的if语句语法：if (条件) { 代码块 }
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            # 标签触发时，使用标签名作为版本
+            echo "VERSION=$env:GITHUB_REF_NAME" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } else {
+            # 普通推送时，使用dev-提交哈希作为版本
+            $shortSha = $env:GITHUB_SHA.Substring(0, 7)  # 取前7位提交哈希（更简洁）
+            echo "VERSION=dev-$shortSha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
 
       - name: 上传到Release
         uses: softprops/action-gh-release@v2
