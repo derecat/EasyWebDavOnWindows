@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# 核心新增：配置GITHUB_TOKEN的权限（必须）
+permissions:
+  contents: write  # 授予写入仓库内容的权限（创建Release必需）
+  actions: read     # 可选，读取Action运行信息
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -28,19 +33,15 @@ jobs:
 
       - name: 打包为Windows可执行文件
         run: |
-          # PowerShell兼容的单行写法
           pyinstaller --onefile --windowed --name "WebDAV管理器" --clean main.py
 
       - name: 提取版本信息（适配PowerShell语法）
         id: get_version
         run: |
-          # PowerShell的if语句语法：if (条件) { 代码块 }
           if ($env:GITHUB_REF_TYPE -eq "tag") {
-            # 标签触发时，使用标签名作为版本
             echo "VERSION=$env:GITHUB_REF_NAME" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           } else {
-            # 普通推送时，使用dev-提交哈希作为版本
-            $shortSha = $env:GITHUB_SHA.Substring(0, 7)  # 取前7位提交哈希（更简洁）
+            $shortSha = $env:GITHUB_SHA.Substring(0, 7)
             echo "VERSION=dev-$shortSha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
 
