@@ -166,25 +166,26 @@ class WebDAVGUI:
 
             # 配置项（修复后的版本）
             config = {
-                "host": "0.0.0.0",
-                "port": port,
-                "verbose": 1,
-                "provider_mapping": {"/": provider},
-                "simple_dc": {
-                    "user_mapping": {
-                        "*": {  # * 表示所有 realm
-                            username: {"password": password},  # 关键：密码必须是字典格式
-                        }
+            "host": "0.0.0.0",
+            "port": port,
+            "verbose": 1,
+            "provider_mapping": {"/": provider},
+            "simple_dc": {
+                "user_mapping": {
+                    "*": {  # * 表示所有 realm
+                        username: {"password": password},
                     }
-                },
-                "http_authenticator": {
-                    "domain_controller": None,
-                    "accept_basic": True,
-                    "accept_digest": False,
-                    "default_realm": "WebDAV",
-                    "default_to_anonymous": False,
-                },
-            }
+                }
+            },
+            "http_authenticator": {
+                "domain_controller": None,
+                "accept_basic": True,
+                "accept_digest": False,
+                "default_realm": "WebDAV",
+                "default_to_anonymous": False,
+            },
+            "dir_browser": False  # 新增这一行：禁用目录浏览插件，避免依赖htdocs
+        }
 
             # 创建并启动服务
             app = WsgiDAVApp(config)
