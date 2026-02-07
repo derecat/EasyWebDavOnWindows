@@ -151,21 +151,21 @@ class WebDAVGUI:
         self.server_thread.start()
 
     def _run_server(self):
-        """实际启动服务的函数（子线程）"""
-        try:
-            self.is_running = True
+    """实际启动服务的函数（子线程）"""
+    try:
+        self.is_running = True
 
-            # 获取配置
-            share_folder = self.folder_var.get()
-            port = int(self.port_var.get())
-            username = self.user_var.get().strip()
-            password = self.pass_var.get().strip()
+        # 获取配置
+        share_folder = self.folder_var.get()
+        port = int(self.port_var.get())
+        username = self.user_var.get().strip()
+        password = self.pass_var.get().strip()
 
-            # 创建文件系统提供者
-            provider = FilesystemProvider(share_folder)
+        # 创建文件系统提供者
+        provider = FilesystemProvider(share_folder)
 
-            # 配置项（修复后的版本）
-            config = {
+        # 配置项（修复dir_browser格式错误）
+        config = {
             "host": "0.0.0.0",
             "port": port,
             "verbose": 1,
@@ -173,7 +173,7 @@ class WebDAVGUI:
             "simple_dc": {
                 "user_mapping": {
                     "*": {  # * 表示所有 realm
-                        username: {"password": password},
+                        username: {"password": password},  # 关键：密码必须是字典格式
                     }
                 }
             },
@@ -184,24 +184,34 @@ class WebDAVGUI:
                 "default_realm": "WebDAV",
                 "default_to_anonymous": False,
             },
-            "dir_browser": False  # 新增这一行：禁用目录浏览插件，避免依赖htdocs
+            # 正确的dir_browser配置：字典格式+enable=False
+            "dir_browser": {
+                "enable": False
+            }
         }
 
-            # 创建并启动服务
-            app = WsgiDAVApp(config)
-            self.server = wsgi.Server(bind_addr=(config["host"], config["port"]), wsgi_app=app)
+        # 创建并启动服务
+        app = WsgiDAVApp(config)
+        self.server = wsgi.Server(bind_addr=(config["host"], config["port"]), wsgi_app=app)
 
-            # 打印启动信息
-            print("=" * 60)
-            print(f"✅ WebDAV 服务启动成功（需密码认证）")
-            print(f"🔗 访问地址: http://{config['host']}:{config['port']}")
-            print(f"📁 共享目录: {share_folder}")
-            print(f"👤 用户名: {username} | 密码: {password}")
-            print(f"📦 wsgidav 版本: {wsgidav_version}")
-            print("=" * 60)
+        # 打印启动信息
+        print("=" * 60)
+        print(f"✅ WebDAV 服务启动成功（需密码认证）")
+        print(f"🔗 访问地址: http://{config['host']}:{config['port']}")
+        print(f"📁 共享目录: {share_folder}")
+        print(f"👤 用户名: {username} | 密码: {password}")
+        print(f"📦 wsgidav 版本: {wsgidav_version}")
+        print("=" * 60)
 
-            # 启动服务（阻塞直到停止）
-            self.server.start()
+        # 启动服务（阻塞直到停止）
+        self.server.start()
+
+    except Exception as e:
+        print(f"\n❌ 服务启动失败：{str(e)}")
+        self.is_running = False
+        # 恢复按钮状态
+        self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
+        self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
 
         except Exception as e:
             print(f"\n❌ 服务启动失败：{str(e)}")
