@@ -1,0 +1,68 @@
+name: Build and Upload Release
+
+# 触发条件：推送到main分支 或 手动触发 或 创建标签时
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]  # 匹配v开头的标签，如v1.0.0
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 授予写入Release的权限
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 设置Python环境
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'  # 建议使用你开发时的Python版本
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller wsgidav cheroot tkinter  # 安装项目依赖和打包工具
+          # 安装tkinter系统依赖（Ubuntu需要）
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      # 4. 打包应用（使用PyInstaller）
+      - name: Build executable with PyInstaller
+        run: |
+          # 创建打包配置（单文件模式，适配Linux）
+          pyinstaller --onefile --name wsgidav-app \
+            --add-data "README.md:." \
+            --windowed \
+            your_main_script.py  # 替换为你的主脚本文件名
+
+      # 5. 提取版本号（可选，从代码中读取）
+      - name: Get version
+        id: get_version
+        run: |
+          # 从代码中提取版本号（适配你的代码逻辑）
+          VERSION=$(python -c "from wsgidav import __version__; print(__version__)")
+          # 如果是标签触发，使用标签版本；否则使用提取的版本
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # 6. 创建并上传Release
+      - name: Create and upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          body: "Automatically built wsgidav desktop app version ${{ env.VERSION }}"
+          files: dist/wsgidav-app  # 打包产物路径
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
