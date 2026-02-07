@@ -1,0 +1,73 @@
+name: 自动打包并发布WebDAV程序
+
+# 触发条件：
+# 1. 推送到main分支时（可选，用于测试）
+# 2. 创建新标签时（建议用于正式发布）
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]  # 匹配以v开头的标签，如v1.0.0
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest  # 必须用Windows环境打包EXE
+    steps:
+      # 步骤1：拉取仓库代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 步骤2：设置Python环境
+      - name: 配置Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'  # 推荐使用3.10（兼容性好）
+          cache: 'pip'  # 缓存pip依赖，加速构建
+
+      # 步骤3：安装依赖（包括打包工具）
+      - name: 安装依赖包
+        run: |
+          python -m pip install --upgrade pip
+          # 安装程序运行依赖
+          pip install wsgidav cheroot
+          # 安装打包工具pyinstaller
+          pip install pyinstaller
+
+      # 步骤4：用PyInstaller打包为EXE
+      - name: 打包为Windows可执行文件
+        run: |
+          pyinstaller --onefile `
+            --windowed `  # 无控制台窗口（GUI程序必备）
+            --name "WebDAV管理器" `  # EXE文件名
+            --add-data "README.md;." `  # 可选：打包额外文件（如有需要）
+            --clean `  # 清理缓存，避免旧文件干扰
+            main.py  # 替换为你的程序主文件名（如果不是main.py请修改）
+
+      # 步骤5：获取版本信息（用于Release命名）
+      - name: 提取版本信息
+        id: get_version
+        run: |
+          # 如果是标签触发，使用标签名；否则用提交哈希
+          if ("${{ github.ref_type }}" -eq "tag"); then
+            echo "VERSION=${{ github.ref_name }}" >> $env:GITHUB_ENV
+          else
+            echo "VERSION=dev-${{ github.sha }}" >> $env:GITHUB_ENV
+          fi
+
+      # 步骤6：发布到GitHub Release
+      - name: 上传到Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name != 'pull_request'  # PR时不发布
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: WebDAV管理器 ${{ env.VERSION }}
+          files: dist/WebDAV管理器.exe  # 打包产物路径
+          body: |
+            自动构建的WebDAV管理器版本：${{ env.VERSION }}
+            - 基于wsgidav实现的WebDAV服务GUI管理工具
+            - 支持自定义共享目录、端口、账号密码
+          draft: false  # 是否为草稿（false直接发布）
+          prerelease: ${{ startsWith(env.VERSION, 'dev-') }}  # 开发版标记为预发布
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub自动生成的令牌，无需手动配置
