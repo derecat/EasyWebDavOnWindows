@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'  # 你项目所需的 Python 版本
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
@@ -26,10 +26,10 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile main.py  # 如果入口文件不是 main.py，请修改成你的入口
+          pyinstaller --onefile main.py
 
       - name: Upload EXE artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: webdav_exe
           path: dist/*.exe
