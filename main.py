@@ -6,7 +6,7 @@ import os
 import tkinter as tk
 from tkinter import ttk, filedialog, scrolledtext, messagebox
 import threading
-import sys
+import sys  # 已导入，无需重复导入
 
 # 重定向控制台输出到GUI文本框的类
 class RedirectText:
@@ -41,10 +41,9 @@ class WebDAVGUI:
         sys.stdout = self.redirector
         sys.stderr = self.redirector
         
-        # ========== 新增代码：打印绪山朝日地址到日志区 ==========
+        # 新增代码：打印绪山朝日地址到日志区
         print("绪山朝日：https://www.xiaoheihe.cn/app/user/profile/84805332")
         print("-" * 60 + "\n")
-        # ======================================================
 
     def create_widgets(self):
         # 1. 配置区域
@@ -151,67 +150,73 @@ class WebDAVGUI:
         self.server_thread.start()
 
     def _run_server(self):
-    """实际启动服务的函数（子线程）"""
-    try:
-        self.is_running = True
+        """实际启动服务的函数（子线程）"""
+        try:
+            self.is_running = True
 
-        # 获取配置
-        share_folder = self.folder_var.get()
-        port = int(self.port_var.get())
-        username = self.user_var.get().strip()
-        password = self.pass_var.get().strip()
+            # 获取配置
+            share_folder = self.folder_var.get()
+            port = int(self.port_var.get())
+            username = self.user_var.get().strip()
+            password = self.pass_var.get().strip()
 
-        # 创建文件系统提供者
-        provider = FilesystemProvider(share_folder)
+            # 创建文件系统提供者
+            provider = FilesystemProvider(share_folder)
 
-        # 配置项（修复dir_browser格式错误）
-        config = {
-            "host": "0.0.0.0",
-            "port": port,
-            "verbose": 1,
-            "provider_mapping": {"/": provider},
-            "simple_dc": {
-                "user_mapping": {
-                    "*": {  # * 表示所有 realm
-                        username: {"password": password},  # 关键：密码必须是字典格式
+            # ==================== 关键修改：适配打包后的htdocs路径 ====================
+            # 判断是否是pyinstaller打包后的环境
+            if hasattr(sys, '_MEIPASS'):
+                # 打包后的临时目录，拼接wsgidav的htdocs路径
+                htdocs_path = os.path.join(sys._MEIPASS, "wsgidav", "dir_browser", "htdocs")
+            else:
+                # 开发环境，使用默认路径
+                htdocs_path = None
+            # ======================================================================
+
+            # 配置项（新增dir_browser配置）
+            config = {
+                "host": "0.0.0.0",
+                "port": port,
+                "verbose": 1,
+                "provider_mapping": {"/": provider},
+                "simple_dc": {
+                    "user_mapping": {
+                        "*": {  # * 表示所有 realm
+                            username: {"password": password},
+                        }
                     }
+                },
+                "http_authenticator": {
+                    "domain_controller": None,
+                    "accept_basic": True,
+                    "accept_digest": False,
+                    "default_realm": "WebDAV",
+                    "default_to_anonymous": False,
+                },
+                # ==================== 关键修改：指定htdocs路径 ====================
+                "dir_browser": {
+                    "enable": True,
+                    "htdocs_path": htdocs_path,  # 手动指定静态资源路径
+                    "show_user_info": True
                 }
-            },
-            "http_authenticator": {
-                "domain_controller": None,
-                "accept_basic": True,
-                "accept_digest": False,
-                "default_realm": "WebDAV",
-                "default_to_anonymous": False,
-            },
-            # 正确的dir_browser配置：字典格式+enable=False
-            "dir_browser": {
-                "enable": False
+                # ==================================================================
             }
-        }
 
-        # 创建并启动服务
-        app = WsgiDAVApp(config)
-        self.server = wsgi.Server(bind_addr=(config["host"], config["port"]), wsgi_app=app)
+            # 创建并启动服务
+            app = WsgiDAVApp(config)
+            self.server = wsgi.Server(bind_addr=(config["host"], config["port"]), wsgi_app=app)
 
-        # 打印启动信息
-        print("=" * 60)
-        print(f"✅ WebDAV 服务启动成功（需密码认证）")
-        print(f"🔗 访问地址: http://{config['host']}:{config['port']}")
-        print(f"📁 共享目录: {share_folder}")
-        print(f"👤 用户名: {username} | 密码: {password}")
-        print(f"📦 wsgidav 版本: {wsgidav_version}")
-        print("=" * 60)
+            # 打印启动信息
+            print("=" * 60)
+            print(f"✅ WebDAV 服务启动成功（需密码认证）")
+            print(f"🔗 访问地址: http://{config['host']}:{config['port']}")
+            print(f"📁 共享目录: {share_folder}")
+            print(f"👤 用户名: {username} | 密码: {password}")
+            print(f"📦 wsgidav 版本: {wsgidav_version}")
+            print("=" * 60)
 
-        # 启动服务（阻塞直到停止）
-        self.server.start()
-
-    except Exception as e:
-        print(f"\n❌ 服务启动失败：{str(e)}")
-        self.is_running = False
-        # 恢复按钮状态
-        self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
-        self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
+            # 启动服务（阻塞直到停止）
+            self.server.start()
 
         except Exception as e:
             print(f"\n❌ 服务启动失败：{str(e)}")
@@ -244,7 +249,7 @@ class WebDAVGUI:
         """清空日志文本框"""
         self.log_text.delete(1.0, tk.END)
         # 清空后重新打印地址
-        print("可以给电一电我吗？https://www.xiaoheihe.cn/app/user/profile/84805332")
+        print("可以电一电我吗？：https://www.xiaoheihe.cn/app/user/profile/84805332")
         print("-" * 60 + "\n")
 
     def on_closing(self):
